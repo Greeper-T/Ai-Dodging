@@ -1,0 +1,4 @@
+res://Scripts/MainGame.gd
+res://Scenes/Game.tscn
+res://Scripts/virusMovement.gd
+res://Scenes/Virus.tscn
