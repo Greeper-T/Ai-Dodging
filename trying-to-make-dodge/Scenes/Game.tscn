@@ -14,9 +14,6 @@ position = Vector2(-15, -7)
 
 [node name="ProjectileContainer" type="Node2D" parent="."]
 
-[node name="Camera2D" type="Camera2D" parent="."]
-zoom = Vector2(0.775, 0.775)
-
 [node name="Timer" type="Timer" parent="."]
 wait_time = 0.5
 autostart = true
@@ -29,3 +26,6 @@ offset_top = 7.0
 offset_right = 51.0
 offset_bottom = 30.0
 text = "TIME"
+
+[node name="Camera2D" type="Camera2D" parent="."]
+zoom = Vector2(0.775, 0.775)
