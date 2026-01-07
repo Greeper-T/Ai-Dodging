@@ -7,11 +7,14 @@ extends Node2D
 @onready var player := $Player
 @onready var bullet_container := $ProjectileContainer
 @onready var timeLabel: Label = $UI/TimerLabel
+@onready var timer: Timer = $Timer
 
 var elapsedTime := 0.0
+var timesHit = 0
+var longestTimeAlive := 0.0
 
 func _ready():
-	$Timer.timeout.connect(spawn_bullet)
+	timer.timeout.connect(spawn_bullet)
 
 func _physics_process(delta: float) -> void:
 	elapsedTime += delta
@@ -22,13 +25,10 @@ func updateLabel():
 	var seconds := int(elapsedTime)
 	var milliseconds := int((elapsedTime - seconds) * 100)
 
+	if seconds == 15:
+		timer.wait_time = .05
 	if seconds == 30:
-		$Timer.wait_time = .25
-	if seconds == 45:
-		$Timer.wait_time = .1
-		
-	if seconds == 60:
-		$Timer.wait_time = 10
+		timer.wait_time = .1
 
 	timeLabel.text = "Time: %02d.%02d" % [seconds, milliseconds]
 
@@ -39,7 +39,22 @@ func get_random_spawn_position() -> Vector2:
 
 	return player.global_position + Vector2(cos(angle), sin(angle)) * distance
 
-
+func reset():
+	player.global_position = Vector2.ZERO
+	if elapsedTime > longestTimeAlive:
+		longestTimeAlive = elapsedTime
+	
+	var seconds := int(longestTimeAlive)
+	var milliseconds := int((longestTimeAlive - seconds) * 100)
+	
+	$UI/Record.text = "Record: %02d.%02d" % [seconds, milliseconds]
+	
+	elapsedTime = 0
+	timer.wait_time = .5
+	timesHit += 1
+	$UI/TimesHitLabel.text = "Times Hit: " + str(timesHit)
+	for child in bullet_container.get_children():
+		child.queue_free()
 
 func spawn_bullet():
 	var bullet = bullet_scene.instantiate()

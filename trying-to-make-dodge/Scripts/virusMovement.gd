@@ -14,6 +14,7 @@ func _process(delta: float) -> void:
 func _on_body_entered(body: Node2D) -> void:
 	if body.is_in_group("Player"):
 		print("collided")
+		get_parent().get_parent().reset()
 		queue_free()
 
 

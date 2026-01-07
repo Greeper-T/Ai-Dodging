@@ -6,7 +6,7 @@ const FRICTION = 1000.0
 
 const DASH_SPEED = 600.0
 const DASH_TIME = 0.15
-const DASH_COOLDOWN = 1.5
+const DASH_COOLDOWN = .1
 
 var dash_direction := Vector2.ZERO
 var dash_timer := 0.0
@@ -30,7 +30,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		if was_dashing:
 			set_collision_layer_value(4, false)
-			set_collision_layer_value(1, true)
+			set_collision_layer_value(1, false)
 
 		handle_normal_movement(delta)
 

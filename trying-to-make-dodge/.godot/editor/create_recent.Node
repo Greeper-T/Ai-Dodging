@@ -1,8 +1,8 @@
+Label
 CollisionShape2D
 ColorRect
 StaticBody2D
 Node2D
-Label
 CanvasLayer
 Timer
 Area2D

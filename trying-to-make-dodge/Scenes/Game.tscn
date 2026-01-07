@@ -27,5 +27,19 @@ offset_right = 51.0
 offset_bottom = 30.0
 text = "TIME"
 
+[node name="TimesHitLabel" type="Label" parent="UI"]
+offset_left = 668.0
+offset_top = 1.0
+offset_right = 708.0
+offset_bottom = 24.0
+text = "Hit"
+
+[node name="Record" type="Label" parent="UI"]
+offset_left = 10.0
+offset_top = 34.0
+offset_right = 65.0
+offset_bottom = 57.0
+text = "Record: 00.00"
+
 [node name="Camera2D" type="Camera2D" parent="."]
 zoom = Vector2(0.775, 0.775)

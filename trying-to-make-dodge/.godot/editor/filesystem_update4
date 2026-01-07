@@ -1,4 +1,4 @@
-res://Scenes/wall.tscn
 res://Scenes/Game.tscn
-res://Scenes/Player.tscn
+res://Scripts/MainGame.gd
+res://Scripts/virusMovement.gd
 res://Scripts/player.gd
