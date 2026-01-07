@@ -30,7 +30,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		if was_dashing:
 			set_collision_layer_value(4, false)
-			set_collision_layer_value(1, false)
+			set_collision_layer_value(1, true)
 
 		handle_normal_movement(delta)
 
