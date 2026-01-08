@@ -1,13 +1,10 @@
 extends Area2D
 
 
-func _ready() -> void:
-	pass # Replace with function body.
-
-@export var speed := randf_range(100,400)
+@export var speed := randf_range(100,150)
 var direction := Vector2.ZERO
 
-func _process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	position += direction * speed * delta
 
 
@@ -16,6 +13,10 @@ func _on_body_entered(body: Node2D) -> void:
 		print("collided")
 		get_parent().get_parent().reset()
 		queue_free()
+
+
+func get_velocity() -> Vector2:
+	return direction * speed
 
 
 func _on_timer_timeout() -> void:

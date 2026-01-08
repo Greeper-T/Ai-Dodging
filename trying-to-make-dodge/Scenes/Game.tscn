@@ -42,4 +42,4 @@ offset_bottom = 57.0
 text = "Record: 00.00"
 
 [node name="Camera2D" type="Camera2D" parent="."]
-zoom = Vector2(0.775, 0.775)
+zoom = Vector2(1.225, 1.225)
