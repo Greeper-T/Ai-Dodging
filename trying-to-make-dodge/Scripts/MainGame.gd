@@ -20,7 +20,7 @@ var last_dash_penalty_time := 0.0
 @export_enum("grid", "neural") var ai_mode: String = "neural"
 
 # Creating a danger grid for the AI
-const GRID_SIZE := 11
+const GRID_SIZE := 15
 const CELL_SIZE := 16
 const GRID_CENTER: int = GRID_SIZE / 2
 
@@ -385,15 +385,10 @@ func calculate_reward() -> float:
 	var center_danger := danger_grid[GRID_CENTER * GRID_SIZE + GRID_CENTER]
 	reward -= center_danger * 0.5
 	
-	# Penalty for dashing too much (encourage skillful dodging)
+	# STRONG penalty for dashing (encourage skillful movement)
 	if player.dash_timer > 0.0:  # Currently dashing
+		reward -= 5.0  # Big penalty per frame while dashing
 		dash_count += 1
-		# Penalty increases with dash frequency
-		var time_since_start = elapsedTime
-		if time_since_start > 0:
-			var dash_rate = dash_count / time_since_start
-			if dash_rate > 2.0:  # More than 2 dashes per second on average
-				reward -= 0.5
 	
 	return reward
 

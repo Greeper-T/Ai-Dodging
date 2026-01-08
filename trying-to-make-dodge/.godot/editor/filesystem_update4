@@ -1,5 +1,2 @@
-res://Scenes/Game.tscn
-res://Scripts/SocketClient.gd
 res://Scripts/MainGame.gd
-res://Scenes/Player.tscn
 res://Scripts/player.gd

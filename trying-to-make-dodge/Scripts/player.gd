@@ -5,7 +5,7 @@ const ACCELERATION = 1200.0
 const FRICTION = 1000.0
 const DASH_SPEED = 600.0
 const DASH_TIME = 0.15
-const DASH_COOLDOWN = .75
+const DASH_COOLDOWN = 15
 
 var dash_direction := Vector2.ZERO
 var dash_timer := 0.0
