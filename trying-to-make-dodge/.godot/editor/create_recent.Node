@@ -1,8 +1,8 @@
+Node2D
 Label
 CollisionShape2D
 ColorRect
 StaticBody2D
-Node2D
 CanvasLayer
 Timer
 Area2D

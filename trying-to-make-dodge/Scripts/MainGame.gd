@@ -8,10 +8,16 @@ extends Node2D
 @onready var bullet_container := $ProjectileContainer
 @onready var timeLabel: Label = $UI/TimerLabel
 @onready var timer: Timer = $Timer
+@onready var socket_client := $SocketClient  # Add this node in the scene
 
 var elapsedTime := 0.0
 var timesHit = 0
 var longestTimeAlive := 0.0
+var dash_count := 0  # Track dashes
+var last_dash_penalty_time := 0.0
+
+# AI Mode: "grid" for your current AI, "neural" for Python NN
+@export_enum("grid", "neural") var ai_mode: String = "neural"
 
 # Creating a danger grid for the AI
 const GRID_SIZE := 11
@@ -29,14 +35,23 @@ var last_dash_time := 0.0
 
 func _ready():
 	timer.timeout.connect(spawn_bullet)
+	
+	# Connect to socket signal if using neural network mode
+	if ai_mode == "neural" and socket_client:
+		socket_client.action_received.connect(_on_action_received)
 
 func _physics_process(delta: float) -> void:
 	danger_grid = compute_danger_grid()
 	queue_redraw()
 	
-	var ai_dir := compute_ai_direction()
-	player.desired_direction = ai_dir
-	player.wants_to_dash = should_ai_dash(delta)
+	if ai_mode == "grid":
+		# Use your grid-based AI
+		var ai_dir := compute_ai_direction()
+		player.desired_direction = ai_dir
+		player.wants_to_dash = should_ai_dash(delta)
+	elif ai_mode == "neural":
+		# Send state to Python and wait for action
+		send_state_to_python()
 	
 	elapsedTime += delta
 	updateLabel()
@@ -83,6 +98,22 @@ func get_random_spawn_position() -> Vector2:
 	return player.global_position + Vector2(cos(angle), sin(angle)) * distance
 
 func reset():
+	# Send terminal state if using neural network FIRST (before clearing bullets)
+	if ai_mode == "neural" and socket_client and socket_client.connected:
+		var terminal_state := {
+			"done": true,
+			"reward": -10.0,  # Big penalty for dying
+			"time_alive": elapsedTime,
+			"danger_grid": [],
+			"player_pos": [0.0, 0.0],
+			"player_vel": [0.0, 0.0],
+			"bullets": [],
+			"can_dash": true
+		}
+		socket_client.send_state(terminal_state)
+		# Give Python time to process the terminal state
+		await get_tree().create_timer(0.1).timeout
+	
 	player.global_position = Vector2.ZERO
 	if elapsedTime > longestTimeAlive:
 		longestTimeAlive = elapsedTime
@@ -95,6 +126,7 @@ func reset():
 	elapsedTime = 0
 	timer.wait_time = .5
 	timesHit += 1
+	dash_count = 0  # Reset dash counter
 	$UI/TimesHitLabel.text = "Times Hit: " + str(timesHit)
 	
 	for child in bullet_container.get_children():
@@ -287,3 +319,89 @@ func get_boundary_penalty(dir: Vector2) -> float:
 		penalty += (future_pos.y - bottom_bound) * 0.02
 	
 	return penalty
+
+
+# ===== NEURAL NETWORK COMMUNICATION =====
+
+func send_state_to_python():
+	if not socket_client or not socket_client.connected:
+		return
+	
+	# Flatten danger grid to array
+	var danger_array := []
+	for i in range(danger_grid.size()):
+		danger_array.append(danger_grid[i])
+	
+	# Get closest bullets info
+	var bullet_info := get_closest_bullets(5)
+	
+	# Prepare state dictionary
+	var state := {
+		"danger_grid": danger_array,
+		"player_pos": [player.global_position.x, player.global_position.y],
+		"player_vel": [player.velocity.x, player.velocity.y],
+		"bullets": bullet_info,
+		"time_alive": elapsedTime,
+		"can_dash": player.dash_cooldown_timer <= 0.0,
+		"reward": calculate_reward(),
+		"done": false
+	}
+	
+	socket_client.send_state(state)
+
+func get_closest_bullets(count: int) -> Array:
+	var bullets := []
+	var bullet_distances := []
+	
+	for child in bullet_container.get_children():
+		var bullet := child as Area2D
+		if bullet == null:
+			continue
+		
+		var dist :float= player.global_position.distance_to(bullet.global_position)
+		bullet_distances.append({"bullet": bullet, "dist": dist})
+	
+	# Sort by distance
+	bullet_distances.sort_custom(func(a, b): return a.dist < b.dist)
+	
+	# Get closest N bullets
+	for i in range(min(count, bullet_distances.size())):
+		var bullet = bullet_distances[i].bullet
+		if bullet.has_method("get_velocity"):
+			var vel = bullet.get_velocity()
+			bullets.append({
+				"pos": [bullet.global_position.x, bullet.global_position.y],
+				"vel": [vel.x, vel.y],
+				"dist": bullet_distances[i].dist
+			})
+	
+	return bullets
+
+func calculate_reward() -> float:
+	# Reward for staying alive
+	var reward := 1.0
+	
+	# Small penalty for being in danger
+	var center_danger := danger_grid[GRID_CENTER * GRID_SIZE + GRID_CENTER]
+	reward -= center_danger * 0.5
+	
+	# Penalty for dashing too much (encourage skillful dodging)
+	if player.dash_timer > 0.0:  # Currently dashing
+		dash_count += 1
+		# Penalty increases with dash frequency
+		var time_since_start = elapsedTime
+		if time_since_start > 0:
+			var dash_rate = dash_count / time_since_start
+			if dash_rate > 2.0:  # More than 2 dashes per second on average
+				reward -= 0.5
+	
+	return reward
+
+func _on_action_received(action_data: Dictionary):
+	# Parse action from neural network
+	if action_data.has("direction"):
+		var dir_array = action_data["direction"]
+		player.desired_direction = Vector2(dir_array[0], dir_array[1])
+	
+	if action_data.has("dash"):
+		player.wants_to_dash = action_data["dash"]
