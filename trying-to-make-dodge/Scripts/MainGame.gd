@@ -20,7 +20,7 @@ var last_dash_penalty_time := 0.0
 @export_enum("grid", "neural") var ai_mode: String = "neural"
 
 # Creating a danger grid for the AI
-const GRID_SIZE := 15
+const GRID_SIZE := 11
 const CELL_SIZE := 16
 const GRID_CENTER: int = GRID_SIZE / 2
 
