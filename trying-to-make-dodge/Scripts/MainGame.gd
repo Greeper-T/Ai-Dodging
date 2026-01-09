@@ -13,8 +13,10 @@ extends Node2D
 var elapsedTime := 0.0
 var timesHit = 0
 var longestTimeAlive := 0.0
-var dash_count := 0  # Track dashes
+var dash_count := 0
 var last_dash_penalty_time := 0.0
+var total_reward_this_episode := 0.0
+var was_dashing_last_frame := false  # Track dash state changes
 
 # AI Mode: "grid" for your current AI, "neural" for Python NN
 @export_enum("grid", "neural") var ai_mode: String = "neural"
@@ -102,7 +104,7 @@ func reset():
 	if ai_mode == "neural" and socket_client and socket_client.connected:
 		var terminal_state := {
 			"done": true,
-			"reward": -10.0,  # Big penalty for dying
+			"reward": -200.0,  # HUGE penalty for dying
 			"time_alive": elapsedTime,
 			"danger_grid": [],
 			"player_pos": [0.0, 0.0],
@@ -111,6 +113,10 @@ func reset():
 			"can_dash": true
 		}
 		socket_client.send_state(terminal_state)
+		
+		# Debug output
+		print("Episode ended | Time: %.2f | Dashes: %d | Total Reward: %.1f" % [elapsedTime, dash_count, total_reward_this_episode])
+		
 		# Give Python time to process the terminal state
 		await get_tree().create_timer(0.1).timeout
 	
@@ -127,6 +133,8 @@ func reset():
 	timer.wait_time = .5
 	timesHit += 1
 	dash_count = 0  # Reset dash counter
+	total_reward_this_episode = 0.0  # Reset reward tracking
+	was_dashing_last_frame = false  # Reset dash tracking
 	$UI/TimesHitLabel.text = "Times Hit: " + str(timesHit)
 	
 	for child in bullet_container.get_children():
@@ -378,17 +386,26 @@ func get_closest_bullets(count: int) -> Array:
 	return bullets
 
 func calculate_reward() -> float:
-	# Reward for staying alive
+	# Base reward for staying alive
 	var reward := 1.0
 	
-	# Small penalty for being in danger
+	# STRONG penalty for being in danger (scales with how dangerous)
 	var center_danger := danger_grid[GRID_CENTER * GRID_SIZE + GRID_CENTER]
-	reward -= center_danger * 0.5
+	if center_danger > 0.0:
+		# Exponential penalty - being in extreme danger is REALLY bad
+		reward -= center_danger * center_danger * 10.0  # 0.5 danger = -2.5, 1.0 danger = -10
 	
-	# STRONG penalty for dashing (encourage skillful movement)
-	if player.dash_timer > 0.0:  # Currently dashing
-		reward -= 5.0  # Big penalty per frame while dashing
+	# Detect NEW dash (just started dashing this frame)
+	var is_dashing_now :bool= player.dash_timer > 0.0
+	if is_dashing_now and not was_dashing_last_frame:
+		# Just started a dash - apply BIG one-time penalty
+		reward -= 100.0  # Massive penalty per dash
 		dash_count += 1
+	
+	was_dashing_last_frame = is_dashing_now
+	
+	# Track total reward for debugging
+	total_reward_this_episode += reward
 	
 	return reward
 

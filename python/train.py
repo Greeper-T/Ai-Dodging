@@ -204,8 +204,8 @@ def train(continue_from=None):
                 continue
 
             # DEBUG: Print received state type
-            if episode < 5 or episode % 10 == 0:  # Only print occasionally
-                print(f"[DEBUG] Received state - Done: {state_dict.get('done', False)}")
+            # if episode < 5 or episode % 10 == 0:  # Only print occasionally
+            #     print(f"[DEBUG] Received state - Done: {state_dict.get('done', False)}")
 
             # Check if episode ended
             if state_dict.get('done', False):
