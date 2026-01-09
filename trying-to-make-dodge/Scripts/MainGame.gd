@@ -54,6 +54,12 @@ func _physics_process(delta: float) -> void:
 	elif ai_mode == "neural":
 		# Send state to Python and wait for action
 		send_state_to_python()
+		
+		# DEBUG: Print reward occasionally
+		if int(elapsedTime * 10) % 30 == 0:  # Every ~3 seconds
+			var recent_reward = calculate_reward()
+			print("Current reward per frame: %.2f | Dashing: %s | Danger: %.2f" % 
+				[recent_reward, player.dash_timer > 0.0, danger_grid[GRID_CENTER * GRID_SIZE + GRID_CENTER]])
 	
 	elapsedTime += delta
 	updateLabel()
@@ -398,8 +404,8 @@ func calculate_reward() -> float:
 	# Detect NEW dash (just started dashing this frame)
 	var is_dashing_now :bool= player.dash_timer > 0.0
 	if is_dashing_now and not was_dashing_last_frame:
-		# Just started a dash - apply BIG one-time penalty
-		reward -= 100.0  # Massive penalty per dash
+		# MASSIVE penalty per dash - make it extremely expensive
+		reward -= 500.0  # Increased from 100 to 500
 		dash_count += 1
 	
 	was_dashing_last_frame = is_dashing_now

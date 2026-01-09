@@ -1,0 +1,7 @@
+pip install tensorboard
+
+tensorboard --logdir=./tensorboard_logs/
+
+pip install stable-baselines3[extra]
+
+python train_sb3.py models/best_model
