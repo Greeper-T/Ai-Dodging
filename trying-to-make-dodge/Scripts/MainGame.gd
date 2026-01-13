@@ -56,10 +56,10 @@ func _physics_process(delta: float) -> void:
 		send_state_to_python()
 		
 		# DEBUG: Print reward occasionally
-		if int(elapsedTime * 10) % 30 == 0:  # Every ~3 seconds
-			var recent_reward = calculate_reward()
-			print("Current reward per frame: %.2f | Dashing: %s | Danger: %.2f" % 
-				[recent_reward, player.dash_timer > 0.0, danger_grid[GRID_CENTER * GRID_SIZE + GRID_CENTER]])
+		#if int(elapsedTime * 10) % 30 == 0:  # Every ~3 seconds
+			#var recent_reward = calculate_reward()
+			#print("Current reward per frame: %.2f | Dashing: %s | Danger: %.2f" % 
+				#[recent_reward, player.dash_timer > 0.0, danger_grid[GRID_CENTER * GRID_SIZE + GRID_CENTER]])
 	
 	elapsedTime += delta
 	updateLabel()
@@ -188,6 +188,10 @@ func compute_danger_grid() -> PackedFloat32Array:
 	var grid: PackedFloat32Array = PackedFloat32Array()
 	grid.resize(GRID_SIZE * GRID_SIZE)
 	grid.fill(0.0)
+	
+	# Sanity check
+	if grid.size() != 121:
+		print("CRITICAL ERROR: Grid initialized with size %d instead of 121" % grid.size())
 
 	for child in bullet_container.get_children():
 		var bullet := child as Area2D
@@ -206,6 +210,10 @@ func compute_danger_grid() -> PackedFloat32Array:
 			var future_pos: Vector2 = bullet.global_position + velocity * ((i + 1) * STEP_TIME)
 			var weight := 1.0 - (float(i) / PREDICTION_STEPS) * 0.3  # Slight decay over distance
 			add_danger_at_position(future_pos, grid, weight)
+	
+	# Final verification before returning
+	if grid.size() != 121:
+		print("CRITICAL ERROR: Grid size changed to %d after processing" % grid.size())
 
 	return grid
 
@@ -343,8 +351,20 @@ func send_state_to_python():
 	
 	# Flatten danger grid to array
 	var danger_array := []
-	for i in range(danger_grid.size()):
-		danger_array.append(danger_grid[i])
+	
+	# Verify grid size first
+	if danger_grid.size() != GRID_SIZE * GRID_SIZE:
+		print("ERROR: Danger grid size is %d, expected %d" % [danger_grid.size(), GRID_SIZE * GRID_SIZE])
+		# Create empty grid as fallback
+		for i in range(GRID_SIZE * GRID_SIZE):
+			danger_array.append(0.0)
+	else:
+		for i in range(danger_grid.size()):
+			danger_array.append(danger_grid[i])
+	
+	# Double check array size
+	if danger_array.size() != 121:
+		print("ERROR: Danger array size is %d after processing" % danger_array.size())
 	
 	# Get closest bullets info
 	var bullet_info := get_closest_bullets(5)
@@ -393,20 +413,36 @@ func get_closest_bullets(count: int) -> Array:
 
 func calculate_reward() -> float:
 	# Base reward for staying alive
-	var reward := 1.0
+	var reward := 2.0  # Increased base reward
 	
 	# STRONG penalty for being in danger (scales with how dangerous)
 	var center_danger := danger_grid[GRID_CENTER * GRID_SIZE + GRID_CENTER]
 	if center_danger > 0.0:
 		# Exponential penalty - being in extreme danger is REALLY bad
-		reward -= center_danger * center_danger * 10.0  # 0.5 danger = -2.5, 1.0 danger = -10
+		reward -= center_danger * center_danger * 20.0
+	
+	# Penalty for being near screen edges
+	var viewport_size := get_viewport_rect().size
+	var margin := 100.0
+	var edge_penalty := 0.0
+	
+	if player.global_position.x < margin or player.global_position.x > viewport_size.x - margin:
+		edge_penalty += 0.5
+	if player.global_position.y < margin or player.global_position.y > viewport_size.y - margin:
+		edge_penalty += 0.5
+	
+	reward -= edge_penalty
 	
 	# Detect NEW dash (just started dashing this frame)
 	var is_dashing_now :bool= player.dash_timer > 0.0
 	if is_dashing_now and not was_dashing_last_frame:
-		# MASSIVE penalty per dash - make it extremely expensive
-		reward -= 500.0  # Increased from 100 to 500
+		# MASSIVE penalty per dash
+		reward -= 500.0
 		dash_count += 1
+	
+	# Bonus for having dash available but NOT using it (smart play)
+	if not is_dashing_now and player.dash_cooldown_timer <= 0.0 and center_danger < 0.3:
+		reward += 0.5
 	
 	was_dashing_last_frame = is_dashing_now
 	

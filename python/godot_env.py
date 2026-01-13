@@ -155,6 +155,14 @@ class GodotDodgeEnv(gym.Env):
         # Danger grid: 121 values
         danger_grid = state_dict.get('danger_grid', [0.0] * 121)
 
+        # Ensure danger grid has correct size
+        if len(danger_grid) != 121:
+            print(f"WARNING: Danger grid size is {len(danger_grid)}, expected 121. Padding/truncating.")
+            if len(danger_grid) < 121:
+                danger_grid = danger_grid + [0.0] * (121 - len(danger_grid))
+            else:
+                danger_grid = danger_grid[:121]
+
         # Player info: 4 values (pos_x, pos_y, vel_x, vel_y)
         player_pos = state_dict.get('player_pos', [0.0, 0.0])
         player_vel = state_dict.get('player_vel', [0.0, 0.0])
@@ -186,6 +194,17 @@ class GodotDodgeEnv(gym.Env):
 
         # Combine all features
         features = danger_grid + player_info + bullet_data + can_dash
+
+        # Final sanity check
+        if len(features) != 141:
+            print(f"ERROR: Feature vector size is {len(features)}, expected 141")
+            print(
+                f"  Danger grid: {len(danger_grid)}, Player: {len(player_info)}, Bullets: {len(bullet_data)}, Can dash: {len(can_dash)}")
+            # Pad or truncate to 141
+            if len(features) < 141:
+                features = features + [0.0] * (141 - len(features))
+            else:
+                features = features[:141]
 
         return np.array(features, dtype=np.float32)
 
