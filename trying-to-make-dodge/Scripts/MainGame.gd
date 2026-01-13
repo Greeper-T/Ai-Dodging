@@ -38,6 +38,10 @@ var last_dash_time := 0.0
 func _ready():
 	timer.timeout.connect(spawn_bullet)
 	
+	# Initialize danger grid
+	danger_grid.resize(GRID_SIZE * GRID_SIZE)
+	danger_grid.fill(0.0)
+	
 	# Connect to socket signal if using neural network mode
 	if ai_mode == "neural" and socket_client:
 		socket_client.action_received.connect(_on_action_received)
@@ -349,22 +353,21 @@ func send_state_to_python():
 	if not socket_client or not socket_client.connected:
 		return
 	
+	# Make sure danger grid exists and has correct size
+	if danger_grid.is_empty() or danger_grid.size() != GRID_SIZE * GRID_SIZE:
+		print("WARNING: Danger grid not ready (size: %d), computing now..." % danger_grid.size())
+		danger_grid = compute_danger_grid()
+	
 	# Flatten danger grid to array
 	var danger_array := []
+	for i in range(danger_grid.size()):
+		danger_array.append(danger_grid[i])
 	
-	# Verify grid size first
-	if danger_grid.size() != GRID_SIZE * GRID_SIZE:
-		print("ERROR: Danger grid size is %d, expected %d" % [danger_grid.size(), GRID_SIZE * GRID_SIZE])
-		# Create empty grid as fallback
-		for i in range(GRID_SIZE * GRID_SIZE):
-			danger_array.append(0.0)
-	else:
-		for i in range(danger_grid.size()):
-			danger_array.append(danger_grid[i])
-	
-	# Double check array size
+	# Final safety check
 	if danger_array.size() != 121:
-		print("ERROR: Danger array size is %d after processing" % danger_array.size())
+		print("ERROR: Danger array size is %d, padding to 121" % danger_array.size())
+		while danger_array.size() < 121:
+			danger_array.append(0.0)
 	
 	# Get closest bullets info
 	var bullet_info := get_closest_bullets(5)

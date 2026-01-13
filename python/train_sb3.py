@@ -8,11 +8,13 @@ import numpy as np
 class GodotCallback(BaseCallback):
     """Custom callback for logging training progress"""
 
-    def __init__(self, verbose=0):
+    def __init__(self, verbose=0, save_freq=50):
         super().__init__(verbose)
         self.episode_rewards = []
         self.episode_lengths = []
         self.best_mean_reward = -np.inf
+        self.save_freq = save_freq  # Save checkpoint every N episodes
+        self.episode_count = 0
 
     def _on_step(self):
         # Check if episode ended
@@ -26,6 +28,7 @@ class GodotCallback(BaseCallback):
 
                 self.episode_rewards.append(reward)
                 self.episode_lengths.append(length)
+                self.episode_count += 1
 
                 # Calculate mean over last 100 episodes
                 if len(self.episode_rewards) >= 100:
@@ -37,9 +40,14 @@ class GodotCallback(BaseCallback):
                         self.model.save('models/best_model')
                         print(f"🎉 New best mean reward: {mean_reward:.2f} - Model saved!")
 
+                # Save periodic checkpoint
+                if self.episode_count % self.save_freq == 0:
+                    checkpoint_path = f'models/checkpoint_ep{self.episode_count}'
+                    self.model.save(checkpoint_path)
+                    print(f"💾 Checkpoint saved at episode {self.episode_count}")
+
                 # Print episode stats
-                episode_num = len(self.episode_rewards)
-                print(f"Episode {episode_num} | Time: {time_alive:.2f}s | "
+                print(f"Episode {self.episode_count} | Time: {time_alive:.2f}s | "
                       f"Reward: {reward:.1f} | Length: {length}")
 
         return True
@@ -71,11 +79,10 @@ def train(total_timesteps=100000, continue_from=None):
             clip_range=0.2,
             ent_coef=0.01,  # Entropy coefficient for exploration
             verbose=1,
-            tensorboard_log="./tensorboard_logs/"
-        )
+            tensorboard_log="./tensorboard_logs/")
 
-    # Create callback
-    callback = GodotCallback()
+    # Create callback (save checkpoint every 50 episodes)
+    callback = GodotCallback(save_freq=100)
 
     print("\n=== Starting PPO Training ===")
     print(f"Total timesteps: {total_timesteps}")
@@ -86,7 +93,7 @@ def train(total_timesteps=100000, continue_from=None):
         model.learn(
             total_timesteps=total_timesteps,
             callback=callback,
-            progress_bar=True
+            progress_bar=True  # Disabled - install stable-baselines3[extra] to enable
         )
 
         print("\n✓ Training completed!")
@@ -114,7 +121,6 @@ if __name__ == "__main__":
 
     # Create models directory
     os.makedirs('models', exist_ok=True)
-    os.makedirs('tensorboard_logs', exist_ok=True)
 
     # Check if user wants to continue from checkpoint
     if len(sys.argv) > 1:
